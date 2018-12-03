@@ -1,38 +1,103 @@
-#include<stdio.h>
-#include<string.h>
-#include<sys/type.h>
-#include<sys/socket.h>
-#include<netinet/in.h>
-#include<arpa/inet.h>
-#include<stdlib.h>
-#include<unistd.h>
-#define port 8080
-#define client_num 10
-#define s 80 
-void *connect_handler(void *thread_id){
-int num=(int)thread_id;
-int sock;
-struct sockaddr_in server_addr;
-char buf[s],buff[s];
-if((sock=socket(AF_INET,SOCK_STREAM,0))<0) perror("Socket");
-bzero((char *) &server_addr,sizeof(server_addr));
-server_addr.sin_family=AF_INET;
-server_addr.sin_addr.s_addr=inet_addr("127.0.0.1");
-server_addr.sin_port=htons(port);
-if(connect(sock,(struct sockaddr *) &server_addr,sizeof(server_addr))<0) perror("select");
-printf("COnnection Success-----\n");
-while(1){
-printf("THREAD %d\n",num);
+#include <stdio.h>
+#include <string.h>    //strlen
+#include <stdlib.h>    //strlen
+#include <sys/socket.h>
+#include <arpa/inet.h> //inet_addr
+#include <unistd.h>    //write
+#include <pthread.h> //for threading , link with lpthread
 
-}
-}
-int main()
+//the thread function
+void *connection_handler(void *);
+
+int main(int argc , char *argv[])
 {
-int socket_des,new_socket,i;
-pthread_t new_thread;
-for(i=0;i<client_num;i++)
+    int socket_desc , client_sock , c , *new_sock;
+    struct sockaddr_in server , client;
+
+    //Create socket
+    socket_desc = socket(AF_INET , SOCK_STREAM , 0);
+    if (socket_desc == -1)
+    {
+        printf("Could not create socket");
+    }
+    puts("Socket created");
+
+    //Prepare the sockaddr_in structure
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = INADDR_ANY;
+    server.sin_port = htons( 8080 );
+if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
+    {
+        //print the error message
+        perror("bind failed. Error");
+        return 1;
+    }
+    puts("bind done");
+
+    //Listen
+    listen(socket_desc , 3);
+
+    //Accept and incoming connection
+    puts("Waiting for incoming connections...");
+    c = sizeof(struct sockaddr_in);
+
+
+    while( (client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c)) )
+    {
+
+        pthread_t sniffer_thread;
+        new_sock = malloc(1);
+        *new_sock = client_sock;
+if( pthread_create( &sniffer_thread , NULL ,  connection_handler , (void*) new_sock) < 0)
+        {
+            perror("could not create thread");
+            return 1;
+        }
+
+        puts("Handler assigned");
+    }
+
+    if (client_sock < 0)
+    {
+        perror("accept failed");
+        return 1;
+    }
+
+    return 0;
+}
+void *connection_handler(void *socket_desc)
 {
-if(pthread_create(&new_thread,NULL,))
+    //Get the socket descriptor
+    int sock = *(int*)socket_desc;
+    int read_size;
+    char *message , client_message[2000];
+printf("Connected successfully client:%d\n", sock);
+    //Receive a message from client
+    while( (read_size = recv(sock , client_message , 2000 , 0)) > 0 )
+    {
+        //Send the message back to client
+        write(sock , client_message , strlen(client_message));
+        printf("The message from client is\n%s\n",client_message);
+    }
+/*if( send(sock , client_message , strlen(client_message) , 0) < 0)
+        {
+            puts("Send failed");
+            return 1;
+        }*/
+    if(read_size == 0)
+    {
+        puts("Client disconnected");
+        fflush(stdout);
+    }
+    else if(read_size == -1)
+    {
+        perror("recv failed");
+    }
+
+    //Free the socket pointer
+    free(socket_desc);
+    close(sock);
+    pthread_exit(NULL); 
+    return 0;
 }
-return 0;
-}
+
