@@ -1,17 +1,18 @@
 #include <stdio.h>
-#include <string.h>    //strlen
-#include <stdlib.h>    //strlen
+#include <string.h>   
+#include <stdlib.h>    
 #include <sys/socket.h>
 #include <arpa/inet.h> //inet_addr
 #include <unistd.h>    //write
 #include <pthread.h> //for threading , link with lpthread
 
+
 //the thread function
 void *connection_handler(void *);
-
+char temp[2000],client2[20],connfd[10];
 int main(int argc , char *argv[])
 {
-    int socket_desc , client_sock , c , *new_sock;
+    int socket_desc , client_sock , c , *new_sock,i;
     struct sockaddr_in server , client;
 
     //Create socket
@@ -33,18 +34,18 @@ if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
         return 1;
     }
     puts("bind done");
-
+    
     //Listen
-    listen(socket_desc , 3);
+    listen(socket_desc , 10);
 
     //Accept and incoming connection
     puts("Waiting for incoming connections...");
-    c = sizeof(struct sockaddr_in);
-
-
+    //c = sizeof(struct sockaddr_in);
+for(i=0;i<10;i++) client2[i]=-1;
+   
     while( (client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c)) )
     {
-
+        
         pthread_t sniffer_thread;
         new_sock = malloc(1);
         *new_sock = client_sock;
@@ -53,7 +54,6 @@ if( pthread_create( &sniffer_thread , NULL ,  connection_handler , (void*) new_s
             perror("could not create thread");
             return 1;
         }
-
         puts("Handler assigned");
     }
 
@@ -65,25 +65,26 @@ if( pthread_create( &sniffer_thread , NULL ,  connection_handler , (void*) new_s
 
     return 0;
 }
+int m=0;
 void *connection_handler(void *socket_desc)
 {
     //Get the socket descriptor
     int sock = *(int*)socket_desc;
-    int read_size;
+    int read_size,i;
     char *message , client_message[2000];
 printf("Connected successfully client:%d\n", sock);
     //Receive a message from client
-    while( (read_size = recv(sock , client_message , 2000 , 0)) > 0 )
+    client2[m]=sock;
+m++;
+   while( (read_size = recv(sock , client_message , 2000 , 0)) > 0 )
     {
         //Send the message back to client
-        write(sock , client_message , strlen(client_message));
+	for(i=0;i<10;i++){
+if(client2[i]!=-1)
+        write(client2[i] , client_message , strlen(client_message));
+	}
         printf("The message from client is\n%s\n",client_message);
     }
-/*if( send(sock , client_message , strlen(client_message) , 0) < 0)
-        {
-            puts("Send failed");
-            return 1;
-        }*/
     if(read_size == 0)
     {
         puts("Client disconnected");
@@ -93,7 +94,6 @@ printf("Connected successfully client:%d\n", sock);
     {
         perror("recv failed");
     }
-
     //Free the socket pointer
     free(socket_desc);
     close(sock);
