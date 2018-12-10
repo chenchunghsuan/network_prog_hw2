@@ -55,9 +55,10 @@ long port;
 void chatloop(char *name, int socketFd)
 {
     fd_set clientFds;
+    int fd,read_len;
     char chatMsg[MAX_BUFFER];
     char chatBuffer[MAX_BUFFER], msgBuffer[MAX_BUFFER];
-
+    char filename[MAX_BUFFER];
     while(1)
     {
         //Reset the fd set each time since select() modifies it
@@ -82,6 +83,21 @@ void chatloop(char *name, int socketFd)
                         fgets(chatBuffer, MAX_BUFFER - 1, stdin);
                         if(strcmp(chatBuffer, "/exit\n") == 0)
                             interruptHandler(-1); //Reuse the interruptHandler function to disconnect the client
+			else if(strcmp(chatBuffer,"file")){
+			fgets(filename,MAX_BUFFER - 1, stdin);
+			fd=open(filename,O_RDONLY);
+			if(!fd){
+			perror("file");
+			return 1;	
+			}
+			while(1) {
+		        memset(filename, 0x00, MAXBUF);
+		        read_len = read(fd, filename, MAXBUF);
+		        send(socketFd, filename, read_len, 0);
+		        if(read_len == 0) {
+		            break;
+		        }
+			}
                         else
                         {
                             buildMessage(chatMsg, name, chatBuffer);
