@@ -56,7 +56,7 @@ long port;
 void chatloop(char *name, int socketFd)
 {
     fd_set clientFds;
-    int fd,read_len;
+    int fd,read_len,fg=1;
     char chatMsg[MAX_BUFFER];
     char chatBuffer[MAX_BUFFER], msgBuffer[MAX_BUFFER];
     char filename[MAX_BUFFER],given[MAX_BUFFER],special[MAX_BUFFER];
@@ -72,6 +72,10 @@ void chatloop(char *name, int socketFd)
             {
                 if(FD_ISSET(fd, &clientFds))
                 {
+		  if(fg){
+		    fg = 0;
+		    write(socketFd,name,MAX_BUFFER-1); //////////////////
+			}
                     if(fd == socketFd) //receive data from server
                     {
                         int numBytesRead = read(socketFd, msgBuffer, MAX_BUFFER - 1);
@@ -84,6 +88,31 @@ void chatloop(char *name, int socketFd)
                         fgets(chatBuffer, MAX_BUFFER - 1, stdin);
                         if(strcmp(chatBuffer, "/exit\n") == 0)
                             interruptHandler(-1); //Reuse the interruptHandler function to disconnect the client
+			else if(strcmp(chatBuffer, "who\n") == 0){
+				write(socketFd, "who\n", MAX_BUFFER - 1);
+}
+			else if(strncmp(chatBuffer, "to",2) == 0)
+			{	char* delim = " ";				
+				char* pch = strtok(chatBuffer,delim);
+				char* pch2;
+				for(int i=1;i>0;i--){
+				pch = strtok(NULL,delim);
+				}
+				//fprintf(stderr,"%s",pch);
+				pch2 = strtok(NULL,delim);
+				write(socketFd, "to\n", MAX_BUFFER - 1);				
+				
+				//read(socketFd,msgBuffer, MAX_BUFFER - 1);//to who 
+								
+				
+			       // fprintf(stderr,"%s",msgBuffer);
+				
+				write(socketFd,pch , MAX_BUFFER - 1);//2
+            			
+				read(socketFd,msgBuffer, MAX_BUFFER - 1);//3
+			        write(socketFd, pch2, MAX_BUFFER - 1);
+
+			}
                         else
                         {
                             buildMessage(chatMsg, name, chatBuffer);
