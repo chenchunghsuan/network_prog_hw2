@@ -270,7 +270,7 @@ void *newClientHandler(void *data)
                 if((pthread_create(&clientThread, NULL, (void *)&clientHandler, (void *)&chv)) == 0)
                 {
                     chatData->numClients++;
-		c++;
+		    c++;
                     fprintf(stderr, "Client has joined chat. Socket: %d\n", clientSocketFd);
                 }
                 else
@@ -290,9 +290,9 @@ void *clientHandler(void *chv)
     queue *q = data->queue;
     int clientSocketFd = vars->clientSocketFd;
 int m,d=0,t;
-    char msgBuffer[MAX_BUFFER];
+    char msgBuffer[MAX_BUFFER],given[100];
     while(1)
-    {	fg=0;
+    {
         int numBytesRead = read(clientSocketFd, msgBuffer, MAX_BUFFER - 1);
         msgBuffer[numBytesRead] = '\0';
 	d=0;
@@ -326,22 +326,18 @@ int m,d=0,t;
         }
 	else if(strcmp(who, "who\n")==0)
 	{
-	while(q->full)
-            {
-                pthread_cond_wait(q->notFull, q->mutex);
-            }
-
-            //Obtain lock, push message to queue, unlock, set condition variable
-            pthread_mutex_lock(q->mutex);
-            fprintf(stderr, "Pushing message to queue: %s\n", allname);
-            queuePush(q,allname);
-            pthread_mutex_unlock(q->mutex);
-            pthread_cond_signal(q->notEmpty);
-	//fprintf(stderr, "Clients are %s.\n",allname);
+	if(write(clientSocketFd, allname, MAX_BUFFER - 1) == -1) perror("ww");
 	}
         else
         {
-           //Wait for queue to not be full before pushing message
+	//fgets(given,100,stdin);
+	//if(strcmp(given,"\n")!=0){
+	//int tt;
+	//scanf("%d",&tt);
+	//if(write(tt, msgBuffer, MAX_BUFFER - 1) == -1) perror("ww");
+        //}
+	//else {
+	   //Wait for queue to not be full before pushing message
             while(q->full)
             {
                 pthread_cond_wait(q->notFull, q->mutex);
@@ -354,17 +350,18 @@ int m,d=0,t;
             pthread_mutex_unlock(q->mutex);
             pthread_cond_signal(q->notEmpty);
         }
+	//}
     }
 }
 
 //The "consumer" -- waits for the queue to have messages then takes them out and broadcasts to clients
 void *messageHandler(void *data)
 {
-    
+    char temp[MAX_BUFFER],temp2[MAX_BUFFER];   
     chatDataVars *chatData = (chatDataVars *)data;
     queue *q = chatData->queue;
-    int *clientSockets = chatData->clientSockets;
-
+    int *clientSockets = chatData->clientSockets;	
+    int i,d=0;
     while(1)
     {
         //Obtain lock and pop message from queue when not empty
@@ -374,9 +371,25 @@ void *messageHandler(void *data)
             pthread_cond_wait(q->notEmpty, q->mutex);
         }
         char* msg = queuePop(q);
+	int t=0,f=0;
+	d=0;
         pthread_mutex_unlock(q->mutex);
         pthread_cond_signal(q->notFull);
-
+	if(msg[0]=='1'){
+	for(i=1;i<strlen(msg);i++){
+	if(msg[i]!='-'&&d==0){
+	temp[t]=msg[i];
+	t++;
+	}
+	else if(msg[i]=='-') d=1;
+	else if(d==1){
+	temp2[f]=msg[i];
+	f++;	
+	}	
+	}
+	fprintf(stderr,"To :%s\n",temp);	
+	}
+	else{
         //Broadcast message to all connected clients
         fprintf(stderr, "Broadcasting message: %s\n", msg);
         for(int i = 0; i < chatData->numClients; i++)
@@ -385,6 +398,7 @@ void *messageHandler(void *data)
             if(socket != 0 && write(socket, msg, MAX_BUFFER - 1) == -1)
                 perror("Socket write failed: ");
         }
+	}
     }
 }
 

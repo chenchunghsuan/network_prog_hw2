@@ -20,7 +20,8 @@ void buildMessage(char *result, char *name, char *msg);
 void setupAndConnect(struct sockaddr_in *serverAddr, struct hostent *host, int socketFd, long port);
 void setNonBlock(int fd);
 void interruptHandler(int sig);
-
+void buildMessage_v(char *result, char *give,char *name, char *msg);
+char *res;
 static int socketFd;
 int main(int argc, char *argv[])
 {
@@ -58,7 +59,7 @@ void chatloop(char *name, int socketFd)
     int fd,read_len;
     char chatMsg[MAX_BUFFER];
     char chatBuffer[MAX_BUFFER], msgBuffer[MAX_BUFFER];
-    char filename[MAX_BUFFER];
+    char filename[MAX_BUFFER],given[MAX_BUFFER],special[MAX_BUFFER];
     while(1)
     {
         //Reset the fd set each time since select() modifies it
@@ -83,21 +84,6 @@ void chatloop(char *name, int socketFd)
                         fgets(chatBuffer, MAX_BUFFER - 1, stdin);
                         if(strcmp(chatBuffer, "/exit\n") == 0)
                             interruptHandler(-1); //Reuse the interruptHandler function to disconnect the client
-			else if(strcmp(chatBuffer,"file")){
-			fgets(filename,MAX_BUFFER - 1, stdin);
-			fd=open(filename,O_RDONLY);
-			if(!fd){
-			perror("file");
-			return 1;	
-			}
-			while(1) {
-		        memset(filename, 0x00, MAXBUF);
-		        read_len = read(fd, filename, MAXBUF);
-		        send(socketFd, filename, read_len, 0);
-		        if(read_len == 0) {
-		            break;
-		        }
-			}
                         else
                         {
                             buildMessage(chatMsg, name, chatBuffer);
@@ -111,7 +97,6 @@ void chatloop(char *name, int socketFd)
         }
     }
 }
-
 //Concatenates the name with the message and puts it into result
 void buildMessage(char *result, char *name, char *msg)
 {
